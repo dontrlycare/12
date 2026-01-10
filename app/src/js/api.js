@@ -4,7 +4,7 @@
  */
 
 // ВАЖНО: Замените на URL вашего Render сервера после деплоя
-const API_BASE_URL = 'https://your-render-app.onrender.com';
+const API_BASE_URL = 'https://one2-nn7d.onrender.com';
 
 const API = {
     /**
