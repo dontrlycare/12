@@ -239,7 +239,7 @@ async function handleSendMedia() {
     setButtonLoading(DOM.sendMediaBtn, false);
 
     if (result.success) {
-        showToast('Медиа отправлено! 🚀');
+        showToast('Отправлено! 🚀');
         handleRemoveMedia();
 
         // Refresh points after a short delay
