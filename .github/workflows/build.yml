@@ -88,22 +88,29 @@ jobs:
           cd app/ios/App
           pod install
       
-      - name: Build iOS (Simulator)
+      - name: Build iOS App (Unsigned)
         run: |
           cd app/ios/App
           xcodebuild -workspace App.xcworkspace \
             -scheme App \
             -configuration Debug \
-            -sdk iphonesimulator \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
             -derivedDataPath build \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             build
       
-      - name: Upload iOS Build
+      - name: Package IPA
+        run: |
+          cd app/ios/App/build/Build/Products/Debug-iphoneos
+          mkdir Payload
+          mv App.app Payload/
+          zip -r MediaSender.ipa Payload
+      
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: MediaSender-iOS
-          path: app/ios/App/build/Build/Products/Debug-iphonesimulator/
+          name: MediaSender-IPA
+          path: app/ios/App/build/Build/Products/Debug-iphoneos/MediaSender.ipa
           retention-days: 30
