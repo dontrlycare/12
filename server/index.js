@@ -40,16 +40,12 @@ bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
   const username = msg.from.username || `user_${chatId}`;
 
-  // Generate verification code
-  const code = generateCode();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
   try {
     // Check if user already exists
     let { data: user } = await supabase
       .from('users')
       .select('*')
-      .eq('telegram_chat_id', codeData.telegram_chat_id)
+      .eq('telegram_chat_id', chatId.toString())
       .single();
 
     if (!user) {
@@ -57,8 +53,8 @@ bot.onText(/\/start/, async (msg) => {
       const { data: newUser, error: userError } = await supabase
         .from('users')
         .insert({
-          telegram_chat_id: codeData.telegram_chat_id,
-          telegram_username: codeData.telegram_username,
+          telegram_chat_id: chatId.toString(),
+          telegram_username: username,
           points: 0
         })
         .select()
@@ -66,39 +62,47 @@ bot.onText(/\/start/, async (msg) => {
 
       if (userError) {
         console.error('Error creating user:', userError);
-        return res.status(500).json({
-          success: false,
-          message: 'Ошибка создания пользователя'
-        });
+        bot.sendMessage(chatId,
+          `❌ Ошибка регистрации. Попробуйте позже.`
+        );
+        return;
       }
       user = newUser;
+
+      // Welcome new user
+      bot.sendMessage(chatId,
+        `🎉 Добро пожаловать!\n\n` +
+        `Вы успешно зарегистрированы в системе.\n` +
+        `Теперь вы можете отправлять медиа через приложение и зарабатывать баллы!`
+      );
+    } else {
+      // Generate verification code for existing user
+      const code = generateCode();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      // Store verification code
+      await supabase
+        .from('verification_codes')
+        .insert({
+          code: code,
+          telegram_chat_id: chatId.toString(),
+          telegram_username: username,
+          expires_at: expiresAt.toISOString(),
+          used: false
+        });
+
+      bot.sendMessage(chatId,
+        `👋 С возвращением, @${username}!\n\n` +
+        `📱 Ваш код для входа: **${code}**\n\n` +
+        `⏰ Код действителен 10 минут.`
+      );
     }
 
-    // Mark code as used
-    await supabase
-      .from('verification_codes')
-      .update({ used: true })
-      .eq('id', codeData.id);
-
-    // Notify user in Telegram
-    bot.sendMessage(codeData.telegram_chat_id,
-      `🎉 Регистрация завершена!\n\n` +
-      `Теперь вы можете отправлять медиа через приложение и зарабатывать баллы!`
-    );
-
-    res.json({
-      success: true,
-      user: {
-        id: newUser.id,
-        telegram_chat_id: newUser.telegram_chat_id,
-        telegram_username: newUser.telegram_username,
-        points: newUser.points
-      }
-    });
-
   } catch (error) {
-    console.error('Error verifying code:', error);
-    res.status(500).json({ success: false, message: 'Ошибка сервера' });
+    console.error('Error in /start handler:', error);
+    bot.sendMessage(chatId,
+      `❌ Произошла ошибка. Попробуйте позже.`
+    );
   }
 });
 
