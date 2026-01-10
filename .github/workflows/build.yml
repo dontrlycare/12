@@ -46,11 +46,14 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace --info
       
+      - name: List Android Build Outputs
+        run: ls -R app/android/app/build/outputs/apk/ || true
+      
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: MediaSender-APK
-          path: app/android/app/build/outputs/apk/debug/app-debug.apk
+          path: app/android/app/build/outputs/apk/debug/*.apk
           retention-days: 30
 
   build-ios:
@@ -96,7 +99,7 @@ jobs:
             -derivedDataPath build \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
-            build | xcpretty
+            build
       
       - name: Upload iOS Build
         uses: actions/upload-artifact@v4
