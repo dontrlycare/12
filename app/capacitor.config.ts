@@ -2,7 +2,7 @@ import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
     appId: 'com.mediasender.app',
-    appName: 'MediaSender',
+    appName: '12',
     webDir: 'src',
     server: {
         androidScheme: 'https'
