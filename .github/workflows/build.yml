@@ -24,7 +24,13 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
       
-      - name: Install dependencies
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      
+      - name: Accept Licenses
+        run: yes | sdkmanager --licenses || true
+      
+      - name: Install Dependencies
         run: |
           cd app
           npm install
@@ -38,7 +44,7 @@ jobs:
         run: |
           cd app/android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --stacktrace --info
       
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -59,7 +65,7 @@ jobs:
         with:
           node-version: '20'
       
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
           cd app
           npm install
@@ -69,7 +75,12 @@ jobs:
           cd app
           npx cap sync ios
       
-      - name: Install CocoaPods
+      - name: Update CocoaPods Repo
+        run: |
+          cd app/ios/App
+          pod repo update
+      
+      - name: Install Pods
         run: |
           cd app/ios/App
           pod install
@@ -85,7 +96,7 @@ jobs:
             -derivedDataPath build \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
-            build
+            build | xcpretty
       
       - name: Upload iOS Build
         uses: actions/upload-artifact@v4
