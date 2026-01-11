@@ -12,9 +12,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Ensure uploads directory exists (use /tmp on Render for ephemeral storage)
+const uploadsDir = process.env.NODE_ENV === 'production' ? '/tmp/uploads' : 'uploads';
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log(`📁 Created uploads directory: ${uploadsDir}`);
+}
+
 // Multer for file uploads
 const upload = multer({
-  dest: 'uploads/',
+  dest: uploadsDir,
   limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
 });
 
@@ -93,8 +100,10 @@ bot.onText(/\/start/, async (msg) => {
 
       bot.sendMessage(chatId,
         `👋 С возвращением, @${username}!\n\n` +
-        `📱 Ваш код для входа: **${code}**\n\n` +
-        `⏰ Код действителен 10 минут.`
+        `📱 Ваш код для входа:\n\n` +
+        `\`${code}\`\n\n` +
+        `⏰ Код действителен 10 минут.`,
+        { parse_mode: 'Markdown' }
       );
     }
 
@@ -276,25 +285,39 @@ app.post('/api/send-media', upload.single('media'), async (req, res) => {
     // Send to admin based on media type
     const caption = `📤 Новое медиа\n\n👤 @${user.telegram_username}\n💎 Баллы: ${user.points}`;
 
+    // Read file as buffer for more reliable sending
+    const fileBuffer = fs.readFileSync(file.path);
+    const fileName = file.originalname || (mediaType === 'video' ? 'video.mp4' : 'photo.jpg');
+
+    console.log(`📤 Sending ${mediaType} to admin: ${fileName} (${fileBuffer.length} bytes)`);
+
     if (mediaType === 'video') {
-      await bot.sendVideo(ADMIN_CHAT_ID, file.path, {
+      await bot.sendVideo(ADMIN_CHAT_ID, fileBuffer, {
         caption: caption,
         reply_markup: keyboard
+      }, {
+        filename: fileName,
+        contentType: file.mimetype || 'video/mp4'
       });
     } else {
-      await bot.sendPhoto(ADMIN_CHAT_ID, file.path, {
+      await bot.sendPhoto(ADMIN_CHAT_ID, fileBuffer, {
         caption: caption,
         reply_markup: keyboard
+      }, {
+        filename: fileName,
+        contentType: file.mimetype || 'image/jpeg'
       });
     }
 
     // Clean up file
     fs.unlinkSync(file.path);
+    console.log(`✅ Media sent successfully, file cleaned up`);
 
     res.json({ success: true, message: 'Медиа отправлено!' });
 
   } catch (error) {
     console.error('Error sending media:', error);
+    console.error('Error details:', error.message);
     if (file && fs.existsSync(file.path)) {
       fs.unlinkSync(file.path);
     }
