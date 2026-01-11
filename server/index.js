@@ -106,6 +106,84 @@ bot.onText(/\/start/, async (msg) => {
   }
 });
 
+// Verify code from app
+app.post('/api/verify-code', async (req, res) => {
+  const { code } = req.body;
+
+  if (!code) {
+    return res.status(400).json({
+      success: false,
+      message: 'Код не указан'
+    });
+  }
+
+  try {
+    // Find valid code
+    const { data: codeData, error: codeError } = await supabase
+      .from('verification_codes')
+      .select('*')
+      .eq('code', code)
+      .eq('used', false)
+      .gt('expires_at', new Date().toISOString())
+      .single();
+
+    if (codeError || !codeData) {
+      return res.status(400).json({
+        success: false,
+        message: 'Неверный или просроченный код'
+      });
+    }
+
+    // Mark code as used
+    await supabase
+      .from('verification_codes')
+      .update({ used: true })
+      .eq('id', codeData.id);
+
+    // Get or create user
+    let { data: user, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('telegram_chat_id', codeData.telegram_chat_id)
+      .single();
+
+    if (userError || !user) {
+      // Create new user if not exists
+      const { data: newUser, error: createError } = await supabase
+        .from('users')
+        .insert({
+          telegram_chat_id: codeData.telegram_chat_id,
+          telegram_username: codeData.telegram_username,
+          points: 0
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        return res.status(500).json({
+          success: false,
+          message: 'Ошибка создания пользователя'
+        });
+      }
+      user = newUser;
+    }
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        telegram_chat_id: user.telegram_chat_id,
+        telegram_username: user.telegram_username,
+        points: user.points
+      }
+    });
+
+  } catch (error) {
+    console.error('Error verifying code:', error);
+    res.status(500).json({ success: false, message: 'Ошибка сервера' });
+  }
+});
+
 // Get user data
 app.get('/api/user/:chatId', async (req, res) => {
   const { chatId } = req.params;
